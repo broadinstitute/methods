@@ -156,8 +156,10 @@ def run_population_pca(
         # model_path = "gs://marten-seqr-sandbox-storage/ancestry/gnomad.joint.v4.0_v2_179samples.pop.RF_fit.pickle"
         # # rdg_gnomad_v4_rf_model_path()
     elif v4_custom_mid_model_cmgmid:
+        logger.info('80 percent of CMG Gleeson MID samples, plus Persian and Arab for MID spike')
         loadings = hl.read_table(rdg_gnomad_v4_pop_pca_loadings_path())
-        model_path = 'gs://marten-seqr-sandbox-storage/ancestry/pop_ht_custom_probs_cmgmidsamples_rfmodel_20240909.pickle'
+        # model_path = 'gs://marten-seqr-sandbox-storage/ancestry/pop_ht_custom_probs_cmgmidsamples_rfmodel_20240909.pickle'
+        model_path = 'gs://marten-seqr-sandbox-storage/ancestry/rf_10162024/pop_ht_custom_probs_cmgmidsamples_rfmodel_20240917.pickle'
     elif not v2_cmg_model:
         logger.info("Reading in standard gnomAD v4 loadings and model...")
         loadings = hl.read_table(rdg_gnomad_v4_pop_pca_loadings_path())
@@ -173,7 +175,9 @@ def run_population_pca(
     scores = (
         scores.annotate(scores=scores.scores[:num_pcs], known_pop="Unknown")
         .key_by("s")
-        .checkpoint(new_temp_file("scores_temp", extension="ht"))
+        .checkpoint(new_temp_file("scores_temp", extension="ht").replace(
+            "/tmp/", "gs://seqr-scratch-temp/")
+        )
     )
 
     logger.info("Unpacking RF model")
@@ -196,10 +200,9 @@ def run_population_pca(
 
 def main(args):
 
-    hl.init(log="/seqr_sample_qc.log")
+    hl.init(log="/seqr_sample_qc.log", tmp_dir='gs://seqr-scratch-temp/sqc_tmp/')
     hl._set_flags(
-        no_whole_stage_codegen="1",
-        
+        use_new_shuffle="1"
     )  # Flag needed for hail 0.2.93, may be able to remove in future release.
     logger.info("Beginning seqr sample QC pipeline...")
 
@@ -248,7 +251,7 @@ def main(args):
                 )
             ],
         ).sample_cols(
-            0.1
+            0.01
         )  # .persist()
         mt = mt.checkpoint(
             new_temp_file("test_mt", extension="mt").replace(
@@ -380,8 +383,7 @@ def main(args):
     if args.v4_custom_per_pop_probs:
         logger.info("Assigning pops with per-pop probabilities...")
         custom_probs = (
-            "gs://marten-seqr-sandbox-storage/gnomad.joint.v4.0.pop_min_probs.json"  # this has been overwritten oops !!!
-            # not a today problem
+            "gs://marten-seqr-sandbox-storage/ancestry/rf_10162024/default_v4_pop_min_probs.json"  
         )
         if v4_custom_mid_model_151:
             logger.info(
@@ -397,9 +399,10 @@ def main(args):
             custom_probs = "gs://marten-seqr-sandbox-storage/ancestry/per_pop_min_probs_179samples.json"
         elif v4_custom_mid_model_cmgmid:
             logger.info(
-                "From v4 custom model with all 700+ cmg mid samples spiked in..."
+                "From v4 custom model with all 700+ cmg mid samples spiked in, via 20240917..."
             )
-            custom_probs = "gs://marten-seqr-sandbox-storage/ancestry/per_pop_min_probs_cmgmid_20240909.json"
+            #custom_probs = "gs://marten-seqr-sandbox-storage/ancestry/per_pop_min_probs_cmgmid_20240909.json"
+            custom_probs = 'gs://marten-seqr-sandbox-storage/ancestry/rf_10162024/per_pop_min_probs_cmgmid_08nq_90cutoff_20241016.json'
 
         with hl.hadoop_open(custom_probs, "r") as d:
             min_probs = json.load(d)
@@ -455,7 +458,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sample-metadata-path",
         help="Path to sample metadata tsv",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "--data-type",

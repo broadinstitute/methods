@@ -111,6 +111,12 @@ def run_hails_impute_sex(
             )
         ],
     )
+
+    logger.info('CUSTOM FILTER TO DIPLOID ONLY')
+    mt = mt.filter_cols(
+        hl.agg.all(mt.GT.is_diploid() | hl.is_missing(mt.GT))
+    )
+
     sex_ht = hl.impute_sex(
         mt.GT,
         aaf_threshold=aaf_threshold,
@@ -191,7 +197,10 @@ def call_sex(
 
     # Filter to PASS variants only (variants with empty or missing filter set)
     # TODO: Make this an optional argument before moving to gnomad_methods
-    mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0), keep=True)
+    # mt = mt.filter_rows(hl.is_missing(mt.filters) | (mt.filters.length() == 0), keep=True)
+
+    logger.info('custom: no filters or just OUTSIDE_OF_TARGETS ')
+    mt = mt.filter_rows((hl.len(mt.filters)==0 )| (mt.filters=={'OUTSIDE_OF_TARGETS'}))
 
     # Infer build:
     build = get_reference_genome(mt.locus).name

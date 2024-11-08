@@ -644,7 +644,7 @@ def main(args):
     if args.v4_custom_per_pop_probs:
         logger.info("Assigning pops with per-pop probabilities...")
         custom_probs = (
-            "gs://marten-seqr-sandbox-storage/gnomad.joint.v4.0.pop_min_probs.json"  # this has been overwritten oops !!!
+            "gs://marten-seqr-sandbox-storage/gnomad.joint.v4.0.pop_min_probs_default.json"  # this has been overwritten oops !!!
             # not a today problem
         )
         if v4_custom_mid_model_151:
