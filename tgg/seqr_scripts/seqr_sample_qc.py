@@ -235,7 +235,7 @@ def run_platform_imputation(
     return plat_ht
 
 
-  def run_population_pca(mt: hl.MatrixTable, build: int, num_pcs=6) -> hl.Table:
+def run_population_pca(mt: hl.MatrixTable, build: int, num_pcs=6) -> hl.Table:
     """
     Projects samples onto pre-computed gnomAD and rare disease sample principal components using PCA loadings.  A
     random forest classifier assigns gnomAD and rare disease sample population labels
@@ -250,9 +250,7 @@ def run_platform_imputation(
     model_path = rdg_gnomad_rf_model_path()
     mt = mt.select_entries("GT")
     scores = pc_project(mt, loadings)
-    scores = scores.annotate(
-        scores=scores.scores[:num_pcs], known_pop="Unknown"
-    ).key_by("s")
+    scores = scores.annotate(known_pop="Unknown").key_by("s")
 
     logger.info("Unpacking RF model")
     fit = None
@@ -260,7 +258,7 @@ def run_platform_imputation(
         fit = pickle.load(f)
 
     pop_pca_ht, ignore = assign_population_pcs(
-        scores, pc_cols=scores.scores, output_col="qc_pop", fit=fit
+        scores, pc_cols=[i + 1 for i in range(num_pcs)], output_col="qc_pop", fit=fit
     )
     pop_pca_ht = pop_pca_ht.key_by("s")
     pop_pcs = {f"pop_PC{i+1}": scores.scores[i] for i in range(num_pcs)}
@@ -269,7 +267,7 @@ def run_platform_imputation(
     return pop_pca_ht
 
 
-  def run_hail_sample_qc(mt: hl.MatrixTable, data_type: str) -> hl.MatrixTable:
+def run_hail_sample_qc(mt: hl.MatrixTable, data_type: str) -> hl.MatrixTable:
     """
     Runs Hail's built in sample qc function on the MatrixTable. Splits the MatrixTable in order to calculate inbreeding
     coefficient and annotates the result back onto original MatrixTable. Applies flags by population and platform groups.
@@ -324,7 +322,9 @@ def run_platform_imputation(
 def main(args):
 
     hl.init(log="/seqr_sample_qc.log")
-    hl._set_flags(no_whole_stage_codegen="1") #Flag needed for hail 0.2.93, may be able to remove in future release.
+    hl._set_flags(
+        no_whole_stage_codegen="1"
+    )  # Flag needed for hail 0.2.93, may be able to remove in future release.
     logger.info("Beginning seqr sample QC pipeline...")
 
     data_type = args.data_type
@@ -421,7 +421,6 @@ def main(args):
         sample_qc_ht_path(build, data_type, data_source, version, is_test), overwrite
     )
     ht.flatten().export(sample_qc_tsv_path(build, data_type, data_source, version))
-
 
 
 if __name__ == "__main__":
@@ -526,6 +525,7 @@ if __name__ == "__main__":
 
     if args.slack_channel:
         from slack_creds import slack_token
+
         with slack.slack_notifications(slack_token, args.slack_channel):
 
             main(args)
