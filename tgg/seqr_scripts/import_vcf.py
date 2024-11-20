@@ -28,6 +28,7 @@ def main(args):
         reference_genome=args.import_build,
         force_bgz=True,
         find_replace=("nul", "."),
+        array_elements_required=False, # NOTE: should probably make a PR out of this !!!
     ).rows()
     logger.info("Importing VCF...")
     # NOTE: always assumes file is bgzipped
@@ -36,6 +37,7 @@ def main(args):
         force_bgz=True,
         reference_genome=args.import_build,
         find_replace=("nul", "."),
+        array_elements_required=False,
     )
     mt = mt.annotate_rows(filters=filters_ht[mt.row_key].filters)
     logger.info(f"MT count: {mt.count()}")
